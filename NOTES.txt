@@ -1,0 +1,26 @@
+Run the file in python console with:
+
+import bpy  
+import os  
+  
+filename = os.path.join(os.path.dirname(bpy.data.filepath), "CalculateMomentumPaths.py")  
+exec(compile(open(filename).read(), filename, 'exec'))
+
+Panel is on the 'Tools Misc' tab.
+
+Setup
+    Create a system of objects (Could be a mixture of armature bones and regular objects)
+    Add a mass object to represent the center of mass for each of these objects. Place the
+    mass object at the center of mass of each bone/object and parent it to that object.
+    Give each mass object a custom property ("mass")
+    Put the objects in a group
+    Groups will be listed on misc panel
+    For groups that are systems of masses check the "isSystem" box
+    Click enable momentum trail button
+    Set the range "before" and "after"
+    Click "Update Step 1"
+    Click "OK" on the dialog that pops up
+    Click "Update Step 2"
+    Momentum paths should be visible in the scene
+
+
