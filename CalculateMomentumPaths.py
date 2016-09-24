@@ -40,6 +40,7 @@ def draw_callback_px(self, context):
     screenPointsImpulses = []
     screenPointsCOM = []
     screenPointsAngularMomentum = []
+    screenPointsFreefallPath = []
     for i in range(0,len(context.scene.momentum_trail.centerOfMasses)):
         centerOfMassPath = context.scene.momentum_trail.centerOfMasses[i]
         momentumVectorsForObj = context.scene.momentum_trail.momentumVectors[i]
@@ -115,6 +116,9 @@ def draw_callback_px(self, context):
           bgl.glVertex2i(int(x), int(y))
       bgl.glEnd()    
     
+    if context.scene.momentum_trail.showFreefallPath:
+        print("doing freefall path")
+        
     # restore opengl defaults
     bgl.glLineWidth(1)
     bgl.glDisable(bgl.GL_BLEND)
@@ -128,6 +132,7 @@ class MomentumTrailGroupItem(bpy.types.PropertyGroup):
 
 class MomentumTrailProps(bpy.types.PropertyGroup):
     centerOfMasses = []
+    mass = []
     momentumVectors = []
     momentumImpulses = []
     angularMomentum = []
@@ -141,6 +146,7 @@ class MomentumTrailProps(bpy.types.PropertyGroup):
     showMomentum = bpy.props.BoolProperty(name="Show Momentum", description="Show Momentum", default = True)
     showImpulse = bpy.props.BoolProperty(name="Show Impulse", description="Show Impulse", default = False)
     showAngularMomentum = bpy.props.BoolProperty(name="Show Angular Momentum", description="Show Angular Momentum", default = False)
+    showFreefallPath = bpy.props.BoolProperty(name="Show Freefall Path", description="Show Freefall Path starting at current frame", default = False)
     momentum_vector_scale = bpy.props.FloatProperty(name="Momentum Scale", min=.000001, soft_max=100000, default=1, description="Scale factor for momentum vector display")
     momentum_groups = bpy.props.CollectionProperty(type = MomentumTrailGroupItem)
     valid_momentum_groups = bpy.props.CollectionProperty(type = MomentumTrailGroupItem)
@@ -213,6 +219,7 @@ class MomentumTrailsPanel(bpy.types.Panel):
         grouped.prop(context.scene.momentum_trail, "showMomentum", text="Show Momentum")
         grouped.prop(context.scene.momentum_trail, "showImpulse", text="Show Impulse")
         grouped.prop(context.scene.momentum_trail, "showAngularMomentum", text="Show Angular Momentum")
+        grouped.prop(context.scene.momentum_trail, "showFreefallPath", text="Show Freefall Path")
         col.operator("view3d.momentum_trail_update", text="Update Path Step 1")
         col.operator("view3d.momentum_trail_update2", text="Update Path Step 2")
 
@@ -290,7 +297,6 @@ class UpdateMomentumPathData(bpy.types.Operator):
             bpy.ops.object.paths_calculate('INVOKE_DEFAULT')  
               
           # TODO Need to be able to display these mometum values as a widget in the scene
-          print("finished ", len(context.scene.momentum_trail.centerOfMasses))
           return {'FINISHED'}
         else:
           self.report({'WARNING'}, "Momentum Trails must be enabled")
@@ -350,14 +356,15 @@ class UpdateMomentumPathData2(bpy.types.Operator):
               print("adding ", grpp)
               
           #TODO fs and fe should not exceed min and max range
-          context.scene.momentum_trail.centerOfMasses = []
-          context.scene.momentum_trail.momentumVectors = []
-          context.scene.momentum_trail.momentumImpulses = []
-          context.scene.momentum_trail.angularMomentum = []
-          context.scene.momentum_trail.frameNums = []
+          del context.scene.momentum_trail.centerOfMasses[:]
+          del context.scene.momentum_trail.mass[:]
+          del context.scene.momentum_trail.momentumVectors[:]
+          del context.scene.momentum_trail.momentumImpulses[:]
+          del context.scene.momentum_trail.angularMomentum[:]
+          del context.scene.momentum_trail.frameNums[:]
+          
           framePeriod = 1 / context.scene.render.fps
           rng = range(fs,fe)
-          
           for grppp in context.scene.momentum_trail.momentum_groups:
             if grppp.isSystem and grppp.isValid == "True":
               grpp = bpy.data.groups[grppp.blenderGroup]
@@ -367,6 +374,7 @@ class UpdateMomentumPathData2(bpy.types.Operator):
               momentumImpulsePath = []
               angularMomentum = []
               frameNums = []
+              masses = []
               momentumPerObj = {}
               i = 0
               for frm in rng:
@@ -407,6 +415,7 @@ class UpdateMomentumPathData2(bpy.types.Operator):
                   
                 centerOfMass = centerOfMass / totalMass
                 centerOfMassPath.append(centerOfMass)
+                masses.append(totalMass)
                 frameNums.append(frm)
                 totalAngularMomentumVector = mathutils.Vector()
                 #now that we have center of mass can find angular momentum
@@ -424,16 +433,14 @@ class UpdateMomentumPathData2(bpy.types.Operator):
               for i in range(1,len(momentumVectorPath)):
                 impulse = momentumVectorPath[i] - momentumVectorPath[i-1]
                 momentumImpulsePath.append(impulse)
+              
               context.scene.momentum_trail.centerOfMasses.append(centerOfMassPath)
+              context.scene.momentum_trail.mass.append(masses)
               context.scene.momentum_trail.momentumVectors.append(momentumVectorPath)
               context.scene.momentum_trail.momentumImpulses.append(momentumImpulsePath)
               context.scene.momentum_trail.angularMomentum.append(angularMomentum)
               context.scene.momentum_trail.frameNums.append(frameNums)
               
-          print(context.scene.frame_current)
-          print(context.scene.momentum_trail.frameNums[0][0])
-          print(context.scene.momentum_trail.frameNums[0][-1])
-          # TODO Need to be able to display these mometum values as a widget in the scene
           print("finished ", len(context.scene.momentum_trail.centerOfMasses))
           return {'FINISHED'}
         else:
